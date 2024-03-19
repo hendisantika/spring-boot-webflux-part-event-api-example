@@ -6,8 +6,12 @@ import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.MultipartBodyBuilder;
+import org.springframework.http.codec.multipart.FilePartEvent;
+import org.springframework.http.codec.multipart.FormPartEvent;
+import org.springframework.http.codec.multipart.PartEvent;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.reactive.function.BodyInserters;
+import reactor.core.publisher.Flux;
 
 import static org.springframework.http.MediaType.MULTIPART_FORM_DATA;
 
@@ -81,4 +85,20 @@ public class FileUploadControllerTest {
                 .jsonPath("$.size()").isEqualTo(2);
     }
 
+    @Test
+    public void testUploadUsingPartEvents() {
+        this.client
+                .post().uri("/upload-with-part-events")
+                .contentType(MULTIPART_FORM_DATA)
+                .body(
+                        Flux.concat(
+                                FormPartEvent.create("name", "test"),
+                                FilePartEvent.create("file", new ClassPathResource("spring.png"))
+                        ),
+                        PartEvent.class
+                )
+                .exchange()
+                .expectStatus().isOk()
+                .expectBodyList(String.class).hasSize(2);
+    }
 }
