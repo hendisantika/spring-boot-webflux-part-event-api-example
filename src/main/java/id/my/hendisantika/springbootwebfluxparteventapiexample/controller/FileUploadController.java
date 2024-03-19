@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.codec.multipart.FilePart;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
@@ -79,6 +80,17 @@ public class FileUploadController {
         var result = Map.of(
                 "name", form.getName(),
                 "filename", form.getFile().filename()
+        );
+        return ok().body(result);
+    }
+
+    @PostMapping(value = "upload-with-request-parts", consumes = MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> handleRequestParts(@RequestPart("name") String name,
+                                                                  @RequestPart("file") FilePart file) {
+        log.info("handling request parts: {}, {}", name, file);
+        var result = Map.of(
+                "name", name,
+                "filename", file.filename()
         );
         return ok().body(result);
     }
