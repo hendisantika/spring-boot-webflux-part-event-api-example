@@ -3,10 +3,15 @@ package id.my.hendisantika.springbootwebfluxparteventapiexample.controller;
 import id.my.hendisantika.springbootwebfluxparteventapiexample.model.FileUploadCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.http.codec.multipart.FilePartEvent;
+import org.springframework.http.codec.multipart.FormPartEvent;
 import org.springframework.http.codec.multipart.Part;
+import org.springframework.http.codec.multipart.PartEvent;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -14,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.io.File;
@@ -110,4 +116,50 @@ public class FileUploadController {
         return ok().body(partNames);
     }
 
+    @PostMapping("upload-with-part-events")
+    public ResponseEntity<Flux<String>> handlePartsEvents(
+            @RequestBody Flux<PartEvent> allPartsEvents) {
+
+        var result = allPartsEvents.windowUntil(PartEvent::isLast)
+                .concatMap(p -> {
+                            return p.switchOnFirst((signal, partEvents) -> {
+                                        if (signal.hasValue()) {
+                                            PartEvent event = signal.get();
+                                            if (event instanceof FormPartEvent formEvent) {
+
+                                                // handle form field
+                                                String value = formEvent.value();
+                                                log.info("form value : {}", value);
+                                                return Mono.just(value + "\n");
+                                            } else if (event instanceof FilePartEvent fileEvent) {
+
+                                                // handle file upload
+                                                String filename = fileEvent.filename();
+                                                log.info("upload file name : {}", filename);
+                                                Flux<DataBuffer> contents = partEvents.map(PartEvent::content);
+                                                var fileBytes = DataBufferUtils.join(contents)
+                                                        .map(dataBuffer -> {
+                                                            byte[] bytes = new byte[dataBuffer.readableByteCount()];
+                                                            dataBuffer.read(bytes);
+                                                            DataBufferUtils.release(dataBuffer);
+                                                            return bytes;
+                                                        });
+
+                                                return Mono.just(filename);
+                                            }
+
+                                            // no signal value
+                                            return Mono.error(new RuntimeException("Unexpected event: " + event));
+                                        }
+
+                                        log.info("return default flux");
+                                        //return result;
+                                        return Flux.empty(); // either complete or error signal
+                                    }
+                            );
+                        }
+                );
+
+        return ok().body(result);
+    }
 }
