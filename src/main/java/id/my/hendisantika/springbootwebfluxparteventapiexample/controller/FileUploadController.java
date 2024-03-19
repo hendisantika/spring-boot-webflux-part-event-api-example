@@ -1,5 +1,6 @@
 package id.my.hendisantika.springbootwebfluxparteventapiexample.controller;
 
+import id.my.hendisantika.springbootwebfluxparteventapiexample.model.FileUploadCommand;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpStatus;
@@ -69,5 +70,16 @@ public class FileUploadController {
             log.error(e.getMessage());
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
+    }
+
+    @PostMapping(value = "simple-form-upload", consumes = MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, String>> handleFileUploadForm(FileUploadCommand form) {
+        log.info("uploading form data: {}", form);
+
+        var result = Map.of(
+                "name", form.getName(),
+                "filename", form.getFile().filename()
+        );
+        return ok().body(result);
     }
 }
