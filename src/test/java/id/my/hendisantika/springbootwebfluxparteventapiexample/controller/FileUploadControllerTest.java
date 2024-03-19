@@ -47,4 +47,21 @@ public class FileUploadControllerTest {
                 .jsonPath("$.name").isEqualTo("test")
                 .jsonPath("$.filename").isEqualTo("spring.png");
     }
+
+    @Test
+    public void testHandleRequestParts() {
+        MultipartBodyBuilder multipartBodyBuilder = new MultipartBodyBuilder();
+        multipartBodyBuilder.part("name", "test");
+        multipartBodyBuilder.part("file", new ClassPathResource("spring.png"), MediaType.IMAGE_PNG);
+        var multipartBody = multipartBodyBuilder.build();
+        this.client
+                .post().uri("/upload-with-request-parts")
+                .contentType(MULTIPART_FORM_DATA)
+                .body(BodyInserters.fromMultipartData(multipartBody))
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.name").isEqualTo("test")
+                .jsonPath("$.filename").isEqualTo("spring.png");
+    }
 }
